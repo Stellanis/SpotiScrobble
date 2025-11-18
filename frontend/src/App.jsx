@@ -1,20 +1,49 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Music, Disc, Search, CheckCircle, Loader2 } from 'lucide-react';
+import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from './utils';
+import { SettingsModal } from './SettingsModal';
 
 const API_URL = 'http://localhost:8000';
 
 function App() {
   const [view, setView] = useState('scrobbles'); // 'scrobbles' or 'library'
-  const [username, setUsername] = useState('wife5711'); // Default from user request
+  const [username, setUsername] = useState('');
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState({});
   const [downloadedTracks, setDownloadedTracks] = useState([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  useEffect(() => {
+    // Fetch settings on mount to get the username
+    const fetchSettings = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/settings`);
+        if (response.data.LASTFM_USER) {
+          setUsername(response.data.LASTFM_USER);
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Fetch scrobbles whenever username changes (if not empty)
+  useEffect(() => {
+    if (username && view === 'scrobbles') {
+      fetchScrobbles();
+    }
+  }, [username]);
 
   const fetchScrobbles = async () => {
+    if (!username) return;
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/scrobbles/${username}`);
@@ -59,15 +88,41 @@ function App() {
 
   useEffect(() => {
     if (view === 'scrobbles') {
-      fetchScrobbles();
+      if (username) fetchScrobbles();
     } else {
       fetchDownloads();
+      setCurrentPage(1); // Reset to first page when switching to library
     }
   }, [view]);
 
+  // Pagination logic
+  const indexOfLastTrack = currentPage * itemsPerPage;
+  const indexOfFirstTrack = indexOfLastTrack - itemsPerPage;
+  const currentTracks = view === 'library'
+    ? downloadedTracks.slice(indexOfFirstTrack, indexOfLastTrack)
+    : tracks;
+
+  const totalPages = Math.ceil(downloadedTracks.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-spotify-black text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={(newUsername) => setUsername(newUsername)}
+      />
+      <div className="w-[95%] mx-auto space-y-8">
 
         {/* Header */}
         <header className="flex flex-col md:flex-row items-center justify-between glass-panel p-6 gap-4">
@@ -106,25 +161,13 @@ function App() {
               </button>
             </div>
 
-            {view === 'scrobbles' && (
-              <div className="flex items-center gap-2 bg-spotify-dark/50 p-2 rounded-lg border border-white/5">
-                <Search className="w-5 h-5 text-spotify-grey" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && fetchScrobbles()}
-                  className="bg-transparent border-none outline-none text-sm w-32 placeholder:text-spotify-grey"
-                  placeholder="Last.fm User"
-                />
-                <button
-                  onClick={fetchScrobbles}
-                  className="bg-spotify-green hover:bg-green-500 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors"
-                >
-                  Fetch
-                </button>
-              </div>
-            )}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-spotify-grey hover:text-white"
+              title="Settings"
+            >
+              <Settings className="w-6 h-6" />
+            </button>
           </div>
         </header>
 
@@ -142,93 +185,171 @@ function App() {
           ) : (
             <div className={cn(
               "grid gap-4",
-              view === 'library' ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-1"
+              view === 'library' ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" : "grid-cols-1"
             )}>
-              <AnimatePresence mode="wait">
-                {(view === 'scrobbles' ? tracks : downloadedTracks).map((track, index) => {
-                  const query = `${track.artist} - ${track.title}`;
-                  const status = view === 'library' || track.downloaded ? 'success' : downloading[query];
+              {view === 'library' && currentTracks.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-spotify-grey">
+                  <Music className="w-16 h-16 mb-4 opacity-50" />
+                  <p className="text-xl font-semibold">Your library is empty</p>
+                  <p className="text-sm mt-2">Download songs from your scrobbles to see them here.</p>
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  {(view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
+                    const query = `${track.artist} - ${track.title}`;
+                    const status = view === 'library' || track.downloaded ? 'success' : downloading[query];
 
-                  // Determine image source: track.image (scrobbles) or track.image_url (library)
-                  const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
+                    // Determine image source: track.image (scrobbles) or track.image_url (library)
+                    const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
 
-                  return (
-                    <motion.div
-                      key={`${track.timestamp || track.id}-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={cn(
-                        "glass-panel group hover:bg-white/10 transition-colors relative overflow-hidden",
-                        view === 'library' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
-                      )}
-                    >
-                      <div className={cn("flex gap-4", view === 'library' ? "flex-col items-start w-full h-full" : "items-center")}>
-                        <div className={cn(
-                          "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg",
-                          view === 'library' ? "w-full aspect-square mb-2" : "w-16 h-16"
-                        )}>
-                          {imageSrc ? (
-                            <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-spotify-dark to-spotify-grey/20 p-2 text-center">
-                              {view === 'library' ? (
-                                <>
-                                  <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
-                                  <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
-                                </>
-                              ) : (
-                                <Music className="w-8 h-8 text-spotify-grey/50" />
-                              )}
-                            </div>
-                          )}
+                    return (
+                      <motion.div
+                        key={`${track.timestamp || track.id}-${index}`}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={cn(
+                          "glass-panel group hover:bg-white/10 transition-colors relative overflow-hidden",
+                          view === 'library' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
+                        )}
+                      >
+                        <div className={cn("flex gap-4", view === 'library' ? "flex-col items-start w-full h-full" : "items-center")}>
+                          <div className={cn(
+                            "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg",
+                            view === 'library' ? "w-full aspect-square mb-2" : "w-16 h-16"
+                          )}>
+                            {imageSrc ? (
+                              <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-spotify-dark to-spotify-grey/20 p-2 text-center">
+                                {view === 'library' ? (
+                                  <>
+                                    <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
+                                    <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
+                                  </>
+                                ) : (
+                                  <Music className="w-8 h-8 text-spotify-grey/50" />
+                                )}
+                              </div>
+                            )}
 
-                          {/* Overlay Play/Check Icon for Library Grid */}
-                          {view === 'library' && (
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <CheckCircle className="w-8 h-8 text-spotify-green" />
-                            </div>
-                          )}
+                            {/* Overlay Play/Check Icon for Library Grid */}
+                            {view === 'library' && (
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <CheckCircle className="w-8 h-8 text-spotify-green" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className={cn("w-full", view === 'library' ? "text-left" : "")}>
+                            <h3 className={cn("font-semibold truncate w-full", view === 'library' ? "text-sm" : "text-lg")}>
+                              {track.title}
+                            </h3>
+                            <p className={cn("text-spotify-grey truncate w-full", view === 'library' ? "text-xs" : "")}>
+                              {track.artist}
+                            </p>
+                            {view !== 'library' && (
+                              <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
+                            )}
+                          </div>
                         </div>
 
-                        <div className={cn("w-full", view === 'library' ? "text-left" : "")}>
-                          <h3 className={cn("font-semibold truncate w-full", view === 'library' ? "text-sm" : "text-lg")}>
-                            {track.title}
-                          </h3>
-                          <p className={cn("text-spotify-grey truncate w-full", view === 'library' ? "text-xs" : "")}>
-                            {track.artist}
-                          </p>
-                          {view !== 'library' && (
-                            <p className="text-xs text-spotify-grey/60 mt-1">{track.album}</p>
-                          )}
-                        </div>
-                      </div>
+                        {view !== 'library' && (
+                          <button
+                            onClick={() => view === 'scrobbles' && handleDownload(track)}
+                            disabled={status === 'loading' || status === 'success'}
+                            className={cn(
+                              "p-3 rounded-full transition-all duration-300",
+                              status === 'success' ? "bg-spotify-green text-white" :
+                                status === 'loading' ? "bg-spotify-grey/20 text-spotify-green" :
+                                  "bg-white/10 text-white hover:bg-spotify-green hover:scale-110"
+                            )}
+                          >
+                            {status === 'success' ? (
+                              <CheckCircle className="w-6 h-6" />
+                            ) : status === 'loading' ? (
+                              <Loader2 className="w-6 h-6 animate-spin" />
+                            ) : (
+                              <Download className="w-6 h-6" />
+                            )}
+                          </button>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              )}
+            </div>
+          )}
 
-                      {view !== 'library' && (
-                        <button
-                          onClick={() => view === 'scrobbles' && handleDownload(track)}
-                          disabled={status === 'loading' || status === 'success'}
-                          className={cn(
-                            "p-3 rounded-full transition-all duration-300",
-                            status === 'success' ? "bg-spotify-green text-white" :
-                              status === 'loading' ? "bg-spotify-grey/20 text-spotify-green" :
-                                "bg-white/10 text-white hover:bg-spotify-green hover:scale-110"
-                          )}
-                        >
-                          {status === 'success' ? (
-                            <CheckCircle className="w-6 h-6" />
-                          ) : status === 'loading' ? (
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                          ) : (
-                            <Download className="w-6 h-6" />
-                          )}
-                        </button>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
+          {/* Pagination Controls */}
+          {view === 'library' && !loading && downloadedTracks.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 p-4 glass-panel">
+              <div className="flex items-center gap-2 text-sm text-spotify-grey">
+                <span>Rows per page:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={handleItemsPerPageChange}
+                  className="bg-spotify-dark border border-white/10 rounded px-2 py-1 text-white focus:outline-none focus:border-spotify-green"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="ml-2">
+                  {indexOfFirstTrack + 1}-{Math.min(indexOfLastTrack, downloadedTracks.length)} of {downloadedTracks.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    // Logic to show current page and surrounding pages
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={cn(
+                          "w-8 h-8 rounded-full text-sm font-medium transition-colors",
+                          currentPage === pageNum
+                            ? "bg-spotify-green text-white"
+                            : "hover:bg-white/10 text-spotify-grey hover:text-white"
+                        )}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
         </div>

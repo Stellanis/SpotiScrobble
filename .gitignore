@@ -21,7 +21,10 @@ yarn-error.log
 .env.*.local
 
 # Application Data
-backend/downloads.db
+*.db
+*.webm
+*.mp3
+backend/data/
 backend/downloads/
 downloads/
 

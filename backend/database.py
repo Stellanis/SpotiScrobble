@@ -31,6 +31,14 @@ def init_db():
     if 'image_url' not in columns:
         print("Migrating database: adding image_url column")
         c.execute("ALTER TABLE downloads ADD COLUMN image_url TEXT")
+
+    # Create settings table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
         
     conn.commit()
     conn.close()
@@ -66,3 +74,26 @@ def get_downloads():
     rows = c.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def get_setting(key, default=None):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT value FROM settings WHERE key = ?', (key,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else default
+
+def set_setting(key, value):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+    conn.commit()
+    conn.close()
+
+def get_all_settings():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT key, value FROM settings')
+    rows = c.fetchall()
+    conn.close()
+    return {row[0]: row[1] for row in rows}

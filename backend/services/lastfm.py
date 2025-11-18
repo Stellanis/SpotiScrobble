@@ -1,17 +1,25 @@
 import pylast
 import os
 
+from database import get_setting
+
 class LastFMService:
     def __init__(self):
-        self.api_key = os.getenv("LASTFM_API_KEY")
-        self.api_secret = os.getenv("LASTFM_API_SECRET")
+        self.api_key = None
+        self.api_secret = None
         self.network = None
-        if self.api_key:
-            self.network = pylast.LastFMNetwork(api_key=self.api_key, api_secret=self.api_secret)
 
     def get_recent_tracks(self, user: str, limit: int = 10):
+        # Refresh credentials from DB in case they changed
+        self.api_key = get_setting("LASTFM_API_KEY") or os.getenv("LASTFM_API_KEY")
+        self.api_secret = get_setting("LASTFM_API_SECRET") or os.getenv("LASTFM_API_SECRET")
+        
+        if self.api_key:
+            self.network = pylast.LastFMNetwork(api_key=self.api_key, api_secret=self.api_secret)
+            
         if not self.network:
-            raise ValueError("Last.fm credentials not configured")
+            print("Last.fm credentials not configured")
+            return []
         
         user_obj = self.network.get_user(user)
         recent_tracks = user_obj.get_recent_tracks(limit=limit)

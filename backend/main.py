@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
-from database import init_db, get_downloads, is_downloaded, DB_NAME
+from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting, set_setting, get_all_settings
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -17,7 +17,7 @@ downloader_service = DownloaderService()
 scheduler = BackgroundScheduler()
 
 def check_new_scrobbles():
-    user = os.getenv("LASTFM_USER")
+    user = get_setting("LASTFM_USER") or os.getenv("LASTFM_USER")
     if not user:
         print("No LASTFM_USER configured for auto-download.")
         return
@@ -65,6 +65,28 @@ class DownloadRequest(BaseModel):
     title: str = None
     album: str = None
     image: str = None
+
+class SettingsRequest(BaseModel):
+    lastfm_api_key: str = None
+    lastfm_api_secret: str = None
+    lastfm_user: str = None
+
+@app.get("/settings")
+async def get_settings():
+    settings = get_all_settings()
+    # Mask secrets? Maybe not for this local app, but good practice usually.
+    # For now, return as is so user can see what they typed.
+    return settings
+
+@app.post("/settings")
+async def update_settings(settings: SettingsRequest):
+    if settings.lastfm_api_key is not None:
+        set_setting("LASTFM_API_KEY", settings.lastfm_api_key)
+    if settings.lastfm_api_secret is not None:
+        set_setting("LASTFM_API_SECRET", settings.lastfm_api_secret)
+    if settings.lastfm_user is not None:
+        set_setting("LASTFM_USER", settings.lastfm_user)
+    return {"status": "updated"}
 
 @app.get("/")
 async def root():
