@@ -3,7 +3,6 @@
 A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
 
 ![Dashboard Preview](https://raw.githubusercontent.com/Stellanis/Spotify_scrobbler/main/dashboard_preview.png)
-*(Replace with actual screenshot if available)*
 
 ## 🚀 Features
 
