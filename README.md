@@ -1,14 +1,3 @@
-## 🛠️ Tech Stack
-
--   **Frontend**: React, Vite, Tailwind CSS, Framer Motion
--   **Backend**: Python, FastAPI, APScheduler
--   **Core**: `yt-dlp` (for downloading), `ffmpeg` (for conversion), `mutagen` (for tagging)
--   **Database**: SQLite
-
-## 📦 Installation
-
-### Option 1: Local Development (Docker Compose)
-
 1.  **Clone the repository**:
     ```bash
     git clone https://github.com/Stellanis/Spotify_scrobbler.git
