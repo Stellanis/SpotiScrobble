@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
-from database import init_db, get_downloads
+from database import init_db, get_downloads, DB_NAME
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 
@@ -34,6 +34,7 @@ def check_new_scrobbles():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    print(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
     init_db()
     scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
     scheduler.start()
