@@ -20,20 +20,6 @@
     -   Frontend: `http://localhost:3001`
     -   Backend: `http://localhost:8000`
 
-### Option 2: NAS Deployment (Portainer)
-
-This project includes a `docker-compose.nas.yml` optimized for NAS setups.
-
-1.  **Open Portainer** on your NAS.
-2.  **Create a new Stack**.
-3.  **Repository URL**: `https://github.com/Stellanis/Spotify_scrobbler.git`
-4.  **Compose Path**: `docker-compose.nas.yml`
-5.  **Environment Variables**:
-    -   `LASTFM_API_KEY`: Your Last.fm API Key
-    -   `LASTFM_USER`: Your Last.fm Username
-6.  **Volume Mapping** (Crucial):
-    Ensure the volume mapping in `docker-compose.nas.yml` matches your NAS music folder path:
-    ```yaml
     volumes:
       - /volume1/docker/data/Music:/app/downloads
     ```
