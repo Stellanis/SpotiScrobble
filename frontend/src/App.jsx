@@ -5,8 +5,8 @@ import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronL
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 
-// Dynamically determine API URL based on current hostname
-const API_URL = `http://${window.location.hostname}:8000`;
+// Use relative path for API requests (proxied by Nginx)
+const API_URL = '/api';
 
 import { Toaster, toast } from 'react-hot-toast';
 
