@@ -1,19 +1,3 @@
-# Spotify Scrobble Downloader
-
-A self-hosted application that automatically downloads your recent Last.fm scrobbles as high-quality MP3s, organized perfectly for Plex.
-
-![Dashboard Preview](dashboard_preview.png) 
-*(Replace with actual screenshot if available)*
-
-## 🚀 Features
-
--   **Automatic Background Downloads**: Checks for new scrobbles every 30 minutes (last 20 tracks).
--   **Smart Deduplication**: Maintains a local database to prevent re-downloading existing songs.
--   **Plex-Ready Organization**: Automatically sorts files into `Artist/Album/Song.mp3`.
--   **Metadata Injection**: Embeds correct Artist, Title, and Album tags (ignoring messy YouTube titles).
--   **Modern UI**: Beautiful, dark-themed React dashboard to view recent tracks and manual download status.
--   **Dockerized**: Easy deployment on local machines or NAS (Synology, Unraid, etc.).
-
 ## 🛠️ Tech Stack
 
 -   **Frontend**: React, Vite, Tailwind CSS, Framer Motion
