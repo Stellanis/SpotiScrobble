@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import logging
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
@@ -9,6 +10,14 @@ from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -19,31 +28,31 @@ scheduler = BackgroundScheduler()
 def check_new_scrobbles():
     user = get_setting("LASTFM_USER") or os.getenv("LASTFM_USER")
     if not user:
-        print("No LASTFM_USER configured for auto-download.")
+        logger.warning("No LASTFM_USER configured for auto-download.")
         return
 
-    print(f"Checking new scrobbles for {user}...")
+    logger.info(f"Checking new scrobbles for {user}...")
     try:
         tracks = lastfm_service.get_recent_tracks(user, limit=20)
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
-            print(f"Processing: {query}")
+            logger.info(f"Processing: {query}")
             downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'])
     except Exception as e:
-        print(f"Error in background job: {e}")
+        logger.error(f"Error in background job: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
+    logger.info(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
     init_db()
     # Run immediately on startup
-    print("Triggering initial scrobble check...")
+    logger.info("Triggering initial scrobble check...")
     scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
     # Schedule periodic checks
     scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
     scheduler.start()
-    print("Scheduler started.")
+    logger.info("Scheduler started.")
     yield
     # Shutdown
     scheduler.shutdown()
@@ -108,7 +117,7 @@ async def get_scrobbles(user: str, limit: int = 10):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error fetching scrobbles: {e}")
+        logger.error(f"Error fetching scrobbles: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/downloads")
