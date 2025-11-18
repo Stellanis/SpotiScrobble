@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spotify_scrobbler_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Map the NAS Music folder to the container's download directory
+      # CHANGE THIS to your actual NAS path
+      - /volume1/docker/data/Music:/app/downloads
+      # Persist the database so you don't lose download history
+      - ./backend/downloads.db:/app/downloads.db
+    environment:
+      - LASTFM_API_KEY=${LASTFM_API_KEY}
+      - LASTFM_API_SECRET=${LASTFM_API_SECRET}
+      - LASTFM_USER=${LASTFM_USER}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: spotify_scrobbler_frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
