@@ -28,6 +28,12 @@ services:
         bind:
           create_host_path: true
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -44,7 +50,8 @@ services:
     ports:
       - "3001:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     deploy:
       resources:

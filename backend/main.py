@@ -45,17 +45,26 @@ def check_new_scrobbles():
 async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
-    init_db()
-    # Run immediately on startup
-    logger.info("Triggering initial scrobble check...")
-    scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
-    # Schedule periodic checks
-    scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
-    scheduler.start()
-    logger.info("Scheduler started.")
+    try:
+        init_db()
+        # Run immediately on startup
+        logger.info("Triggering initial scrobble check...")
+        scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
+        # Schedule periodic checks
+        scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
+        scheduler.start()
+        logger.info("Scheduler started.")
+    except Exception as e:
+        logger.critical(f"CRITICAL STARTUP ERROR: {e}")
+        # We might want to re-raise or just let the app run in a broken state so logs can be read
+        # For now, let's re-raise so the container restarts, but at least we logged it.
+        raise e
     yield
     # Shutdown
-    scheduler.shutdown()
+    try:
+        scheduler.shutdown()
+    except Exception:
+        pass
 
 app = FastAPI(title="Spotify Downloader API", lifespan=lifespan)
 

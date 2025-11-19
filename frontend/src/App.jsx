@@ -45,6 +45,21 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        await axios.get(`${API_URL}/health`);
+      } catch (error) {
+        console.error("Backend health check failed:", error);
+        toast.error("Cannot connect to backend service. Please check if the server is running.", {
+          duration: 5000,
+          icon: '⚠️'
+        });
+      }
+    };
+    checkBackend();
+  }, []);
+
   const handleDownload = async (track) => {
     const query = `${track.artist} - ${track.title}`;
     setDownloading(prev => ({ ...prev, [query]: 'loading' }));
