@@ -4,7 +4,7 @@ import { X, Save, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { cn } from './utils';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = '/api';
 
 export function SettingsModal({ isOpen, onClose, onSave }) {
     const [apiKey, setApiKey] = useState('');
