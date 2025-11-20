@@ -89,14 +89,25 @@ class DownloaderService:
                 if os.path.exists(downloaded_file):
                     # Apply metadata using mutagen
                     try:
-                        from mutagen.easyid3 import EasyID3
-                        from mutagen.id3 import ID3, APIC
+                        from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC, error
                         
-                        audio = EasyID3(downloaded_file)
-                        audio['artist'] = clean_artist
-                        audio['title'] = clean_title
-                        audio['album'] = clean_album
-                        audio.save()
+                        try:
+                            audio = ID3(downloaded_file)
+                        except error:
+                            audio = ID3()
+                        
+                        # Clear all tags except APIC (Cover Art)
+                        # We iterate over a list of keys to avoid runtime error while deleting
+                        for key in list(audio.keys()):
+                            if not key.startswith("APIC"):
+                                del audio[key]
+                        
+                        # Set correct metadata
+                        audio.add(TIT2(encoding=3, text=clean_title))
+                        audio.add(TPE1(encoding=3, text=clean_artist))
+                        audio.add(TALB(encoding=3, text=clean_album))
+                        
+                        audio.save(v2_version=3)
                         
                         # Rename/Move to final clean filename
                         if os.path.exists(final_filename):
