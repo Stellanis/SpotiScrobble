@@ -10,6 +10,8 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
     const [apiKey, setApiKey] = useState('');
     const [apiSecret, setApiSecret] = useState('');
     const [username, setUsername] = useState('');
+    const [updateInterval, setUpdateInterval] = useState(30);
+    const [limitCount, setLimitCount] = useState(20);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -26,6 +28,8 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
             setApiKey(response.data.LASTFM_API_KEY || '');
             setApiSecret(response.data.LASTFM_API_SECRET || '');
             setUsername(response.data.LASTFM_USER || '');
+            setUpdateInterval(response.data.SCROBBLE_UPDATE_INTERVAL || 30);
+            setLimitCount(response.data.SCROBBLE_LIMIT_COUNT || 20);
         } catch (error) {
             console.error("Error fetching settings:", error);
         } finally {
@@ -39,7 +43,9 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
             await axios.post(`${API_URL}/settings`, {
                 lastfm_api_key: apiKey,
                 lastfm_api_secret: apiSecret,
-                lastfm_user: username
+                lastfm_user: username,
+                scrobble_update_interval: parseInt(updateInterval),
+                scrobble_limit_count: parseInt(limitCount)
             });
             onSave(username); // Pass back the new username to update App state
             onClose();
@@ -118,6 +124,29 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
                                             className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
                                             placeholder="Enter Username"
                                         />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-spotify-grey">Update Interval (min)</label>
+                                            <input
+                                                type="number"
+                                                value={updateInterval}
+                                                onChange={(e) => setUpdateInterval(e.target.value)}
+                                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                min="1"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-spotify-grey">Tracks to Check</label>
+                                            <input
+                                                type="number"
+                                                value={limitCount}
+                                                onChange={(e) => setLimitCount(e.target.value)}
+                                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                min="1"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="pt-4 flex justify-end gap-3">

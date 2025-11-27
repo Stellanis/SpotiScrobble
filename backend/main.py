@@ -22,9 +22,10 @@ def check_new_scrobbles():
         print("No LASTFM_USER configured for auto-download.")
         return
 
-    print(f"Checking new scrobbles for {user}...")
+    limit = int(get_setting("SCROBBLE_LIMIT_COUNT") or 20)
+    print(f"Checking new scrobbles for {user} (limit: {limit})...")
     try:
-        tracks = lastfm_service.get_recent_tracks(user, limit=20)
+        tracks = lastfm_service.get_recent_tracks(user, limit=limit)
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
             print(f"Processing: {query}")
@@ -41,7 +42,9 @@ async def lifespan(app: FastAPI):
     print("Triggering initial scrobble check...")
     scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
     # Schedule periodic checks
-    scheduler.add_job(check_new_scrobbles, 'interval', minutes=30)
+    interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)
+    print(f"Scheduling scrobble check every {interval} minutes.")
+    scheduler.add_job(check_new_scrobbles, 'interval', minutes=interval, id='scrobble_check')
     scheduler.start()
     print("Scheduler started.")
     yield
@@ -70,6 +73,8 @@ class SettingsRequest(BaseModel):
     lastfm_api_key: str = None
     lastfm_api_secret: str = None
     lastfm_user: str = None
+    scrobble_update_interval: int = None
+    scrobble_limit_count: int = None
 
 @app.get("/settings")
 async def get_settings():
@@ -86,6 +91,23 @@ async def update_settings(settings: SettingsRequest):
         set_setting("LASTFM_API_SECRET", settings.lastfm_api_secret)
     if settings.lastfm_user is not None:
         set_setting("LASTFM_USER", settings.lastfm_user)
+    
+    if settings.scrobble_limit_count is not None:
+        set_setting("SCROBBLE_LIMIT_COUNT", str(settings.scrobble_limit_count))
+
+    if settings.scrobble_update_interval is not None:
+        old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)
+        set_setting("SCROBBLE_UPDATE_INTERVAL", str(settings.scrobble_update_interval))
+        
+        if old_interval != settings.scrobble_update_interval:
+            print(f"Rescheduling scrobble check to every {settings.scrobble_update_interval} minutes.")
+            try:
+                scheduler.reschedule_job('scrobble_check', trigger='interval', minutes=settings.scrobble_update_interval)
+            except Exception as e:
+                print(f"Failed to reschedule job: {e}")
+                # If job doesn't exist (e.g. startup failed), try adding it
+                scheduler.add_job(check_new_scrobbles, 'interval', minutes=settings.scrobble_update_interval, id='scrobble_check')
+
     return {"status": "updated"}
 
 @app.get("/")
