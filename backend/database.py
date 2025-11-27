@@ -39,6 +39,9 @@ def init_db():
             value TEXT
         )
     ''')
+
+    # Performance: Add index on created_at for fast pagination
+    c.execute('CREATE INDEX IF NOT EXISTS idx_downloads_created_at ON downloads(created_at)')
         
     conn.commit()
     conn.close()
