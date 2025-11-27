@@ -10,6 +10,20 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        RotatingFileHandler("app.log", maxBytes=1000000, backupCount=3),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 lastfm_service = LastFMService()
@@ -19,34 +33,34 @@ scheduler = BackgroundScheduler()
 def check_new_scrobbles():
     user = get_setting("LASTFM_USER") or os.getenv("LASTFM_USER")
     if not user:
-        print("No LASTFM_USER configured for auto-download.")
+        logger.warning("No LASTFM_USER configured for auto-download.")
         return
 
     limit = int(get_setting("SCROBBLE_LIMIT_COUNT") or 20)
-    print(f"Checking new scrobbles for {user} (limit: {limit})...")
+    logger.info(f"Checking new scrobbles for {user} (limit: {limit})...")
     try:
         tracks = lastfm_service.get_recent_tracks(user, limit=limit)
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
-            print(f"Processing: {query}")
+            logger.info(f"Processing: {query}")
             downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
     except Exception as e:
-        print(f"Error in background job: {e}")
+        logger.error(f"Error in background job: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
+    logger.info(f"--- STARTUP: Database path is: {os.path.abspath(DB_NAME)} ---")
     init_db()
     # Run immediately on startup
-    print("Triggering initial scrobble check...")
+    logger.info("Triggering initial scrobble check...")
     scheduler.add_job(check_new_scrobbles, 'date', run_date=datetime.now())
     # Schedule periodic checks
     interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)
-    print(f"Scheduling scrobble check every {interval} minutes.")
+    logger.info(f"Scheduling scrobble check every {interval} minutes.")
     scheduler.add_job(check_new_scrobbles, 'interval', minutes=interval, id='scrobble_check')
     scheduler.start()
-    print("Scheduler started.")
+    logger.info("Scheduler started.")
     yield
     # Shutdown
     scheduler.shutdown()
@@ -79,8 +93,18 @@ class SettingsRequest(BaseModel):
 @app.get("/settings")
 async def get_settings():
     settings = get_all_settings()
-    # Mask secrets? Maybe not for this local app, but good practice usually.
-    # For now, return as is so user can see what they typed.
+    
+    # Mask secrets
+    if "LASTFM_API_KEY" in settings and settings["LASTFM_API_KEY"]:
+        key = settings["LASTFM_API_KEY"]
+        if len(key) > 4:
+            settings["LASTFM_API_KEY"] = key[:4] + "*" * (len(key) - 4)
+            
+    if "LASTFM_API_SECRET" in settings and settings["LASTFM_API_SECRET"]:
+        secret = settings["LASTFM_API_SECRET"]
+        if len(secret) > 4:
+            settings["LASTFM_API_SECRET"] = secret[:4] + "*" * (len(secret) - 4)
+            
     return settings
 
 @app.post("/settings")
@@ -100,11 +124,11 @@ async def update_settings(settings: SettingsRequest):
         set_setting("SCROBBLE_UPDATE_INTERVAL", str(settings.scrobble_update_interval))
         
         if old_interval != settings.scrobble_update_interval:
-            print(f"Rescheduling scrobble check to every {settings.scrobble_update_interval} minutes.")
+            logger.info(f"Rescheduling scrobble check to every {settings.scrobble_update_interval} minutes.")
             try:
                 scheduler.reschedule_job('scrobble_check', trigger='interval', minutes=settings.scrobble_update_interval)
             except Exception as e:
-                print(f"Failed to reschedule job: {e}")
+                logger.error(f"Failed to reschedule job: {e}")
                 # If job doesn't exist (e.g. startup failed), try adding it
                 scheduler.add_job(check_new_scrobbles, 'interval', minutes=settings.scrobble_update_interval, id='scrobble_check')
 
@@ -129,13 +153,23 @@ async def get_scrobbles(user: str, limit: int = 10):
         return tracks
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        print(f"Error fetching scrobbles: {e}")
+        logger.error(f"Error fetching scrobbles: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/downloads")
-async def list_downloads():
-    return get_downloads()
+async def list_downloads(page: int = 1, limit: int = 50):
+    from database import get_total_downloads_count
+    items = get_downloads(page, limit)
+    total = get_total_downloads_count()
+    total_pages = (total + limit - 1) // limit
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
 
 @app.post("/download")
 async def download_song(request: DownloadRequest, background_tasks: BackgroundTasks):

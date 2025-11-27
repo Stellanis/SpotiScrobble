@@ -1,6 +1,8 @@
 import yt_dlp
 import os
-from database import is_downloaded, add_download
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DownloaderService:
     def __init__(self, download_path: str = "downloads"):
@@ -10,7 +12,7 @@ class DownloaderService:
 
     def download_song(self, query: str, artist: str = None, title: str = None, album: str = None, image_url: str = None):
         if is_downloaded(query):
-            print(f"Skipping {query}, already downloaded.")
+            logger.info(f"Skipping {query}, already downloaded.")
             return {"status": "skipped", "message": "Already downloaded"}
 
         # Use a temporary filename to avoid issues with special characters in YouTube titles
@@ -107,6 +109,25 @@ class DownloaderService:
                         audio.add(TPE1(encoding=3, text=clean_artist))
                         audio.add(TALB(encoding=3, text=clean_album))
                         
+                        # Handle Cover Art
+                        # If yt-dlp didn't embed it, or we prefer the one from Last.fm (often better quality/correct album)
+                        # Let's check if we have an image_url
+                        if image_url:
+                            try:
+                                import requests
+                                response = requests.get(image_url)
+                                if response.status_code == 200:
+                                    audio.add(APIC(
+                                        encoding=3,
+                                        mime='image/jpeg', # Assume JPEG for now, or detect
+                                        type=3, # Cover (front)
+                                        desc=u'Cover',
+                                        data=response.content
+                                    ))
+                                    logger.info(f"Embedded cover art from {image_url}")
+                            except Exception as e:
+                                logger.error(f"Failed to download/embed cover art: {e}")
+
                         audio.save(v2_version=3)
                         
                         # Rename/Move to final clean filename
@@ -114,12 +135,12 @@ class DownloaderService:
                             os.remove(final_filename) # Overwrite if exists (though we checked DB)
                         
                         os.rename(downloaded_file, final_filename)
-                        print(f"Renamed to: {final_filename}")
+                        logger.info(f"Renamed to: {final_filename}")
                         
                         add_download(query, clean_artist, clean_title, clean_album, image_url=image_url, status="completed")
                         return {"status": "success", "info": info, "file": final_filename}
                     except Exception as e:
-                        print(f"Error tagging/renaming: {e}")
+                        logger.error(f"Error tagging/renaming: {e}")
                         return {"status": "partial_success", "message": "Downloaded but failed to tag/rename"}
                 else:
                      return {"status": "error", "message": "Downloaded file not found"}

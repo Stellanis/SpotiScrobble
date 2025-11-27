@@ -5,6 +5,8 @@ import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronL
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 
+import { Toaster, toast } from 'react-hot-toast';
+
 const API_URL = '/api';
 
 function App() {
@@ -19,6 +21,7 @@ function App() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     // Fetch settings on mount to get the username
@@ -58,10 +61,17 @@ function App() {
   const fetchDownloads = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/downloads`);
-      setDownloadedTracks(response.data);
+      const response = await axios.get(`${API_URL}/downloads`, {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage
+        }
+      });
+      setDownloadedTracks(response.data.items);
+      setTotalPages(response.data.total_pages);
     } catch (error) {
       console.error("Error fetching downloads:", error);
+      toast.error("Failed to fetch library");
     } finally {
       setLoading(false);
     }
@@ -91,18 +101,14 @@ function App() {
       if (username) fetchScrobbles();
     } else {
       fetchDownloads();
-      setCurrentPage(1); // Reset to first page when switching to library
     }
-  }, [view]);
+  }, [view, currentPage, itemsPerPage]);
 
-  // Pagination logic
-  const indexOfLastTrack = currentPage * itemsPerPage;
-  const indexOfFirstTrack = indexOfLastTrack - itemsPerPage;
   const currentTracks = view === 'library'
-    ? downloadedTracks.slice(indexOfFirstTrack, indexOfLastTrack)
+    ? downloadedTracks
     : tracks;
 
-  const totalPages = Math.ceil(downloadedTracks.length / itemsPerPage);
+  // const totalPages = Math.ceil(downloadedTracks.length / itemsPerPage); // Server provides this now
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -117,6 +123,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-spotify-black text-white p-8">
+      <Toaster position="bottom-right" toastOptions={{
+        style: {
+          background: '#333',
+          color: '#fff',
+        },
+      }} />
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -298,7 +310,7 @@ function App() {
                   <option value={50}>50</option>
                 </select>
                 <span className="ml-2">
-                  {indexOfFirstTrack + 1}-{Math.min(indexOfLastTrack, downloadedTracks.length)} of {downloadedTracks.length}
+                  Page {currentPage} of {totalPages}
                 </span>
               </div>
 

@@ -66,14 +66,23 @@ def is_downloaded(query):
     conn.close()
     return result is not None
 
-def get_downloads():
+def get_downloads(page=1, limit=50):
+    offset = (page - 1) * limit
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('SELECT * FROM downloads ORDER BY created_at DESC')
+    c.execute('SELECT * FROM downloads ORDER BY created_at DESC LIMIT ? OFFSET ?', (limit, offset))
     rows = c.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def get_total_downloads_count():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT COUNT(*) FROM downloads')
+    count = c.fetchone()[0]
+    conn.close()
+    return count
 
 def get_setting(key, default=None):
     conn = sqlite3.connect(DB_NAME)
