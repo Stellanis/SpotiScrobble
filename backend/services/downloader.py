@@ -1,6 +1,7 @@
 import yt_dlp
 import os
 import logging
+from database import is_downloaded, add_download
 
 logger = logging.getLogger(__name__)
 
