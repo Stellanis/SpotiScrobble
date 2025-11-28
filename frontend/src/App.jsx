@@ -106,7 +106,8 @@ function App() {
     } catch (error) {
       console.error("Error downloading:", error);
       setDownloading(prev => ({ ...prev, [query]: 'error' }));
-      toast.error(`Failed to download "${track.title}"`);
+      const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
+      toast.error(`Failed to download "${track.title}": ${errorMessage}`);
     }
   };
 
@@ -249,6 +250,8 @@ function App() {
                     // Determine image source: track.image (scrobbles) or track.image_url (library/undownloaded)
                     const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
 
+                    const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
+
                     return (
                       <motion.div
                         key={`${track.timestamp || track.id}-${index}`}
@@ -265,7 +268,7 @@ function App() {
                           <div className={cn(
                             "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg",
                             view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16",
-                            status === 'loading' && "opacity-50 pointer-events-none"
+                            isQueued && track.status !== 'completed' && "opacity-50 pointer-events-none"
                           )}>
                             {imageSrc ? (
                               <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
@@ -286,11 +289,11 @@ function App() {
                             {(view === 'library' || view === 'undownloaded') && (
                               <div className={cn(
                                 "absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center",
-                                status === 'loading' ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                isQueued && track.status !== 'completed' ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                               )}>
                                 {track.status === 'completed' ? (
                                   <CheckCircle className="w-8 h-8 text-spotify-green" />
-                                ) : status === 'loading' ? (
+                                ) : isQueued ? (
                                   <Loader2 className="w-8 h-8 text-spotify-green animate-spin" />
                                 ) : (
                                   <button
