@@ -59,7 +59,7 @@ def check_new_scrobbles():
                     logger.info(f"Skipping {query}, already downloaded.")
                     continue
                     
-                downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
+                downloader_service.queue_download(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
             else:
                 # If auto-download is disabled, add to DB as pending if not exists
                 if not is_downloaded(query):
@@ -213,18 +213,17 @@ async def list_downloads(page: int = 1, limit: int = 50, status: str = None, sea
     }
 
 @app.post("/download")
-async def download_song(request: DownloadRequest, background_tasks: BackgroundTasks):
-    # Run download in background to not block the API
-    background_tasks.add_task(downloader_service.download_song, request.query, request.artist, request.title, request.album, request.image)
+async def download_song(request: DownloadRequest):
+    # Queue the download
+    downloader_service.queue_download(request.query, request.artist, request.title, request.album, request.image)
     return {"status": "queued", "query": request.query}
 
 @app.post("/download/all")
-async def download_all_pending(background_tasks: BackgroundTasks):
+async def download_all_pending():
     pending_tracks = get_all_pending_downloads()
     count = 0
     for track in pending_tracks:
-        background_tasks.add_task(
-            downloader_service.download_song, 
+        downloader_service.queue_download(
             track['query'], 
             track['artist'], 
             track['title'], 
