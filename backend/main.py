@@ -49,6 +49,16 @@ def check_new_scrobbles():
             logger.info(f"Processing: {query}")
             
             if auto_download:
+                from database import get_download_status
+                status = get_download_status(query)
+                
+                if status == 'pending':
+                    logger.info(f"Skipping {query}, pending manual download.")
+                    continue
+                elif status == 'completed':
+                    logger.info(f"Skipping {query}, already downloaded.")
+                    continue
+                    
                 downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
             else:
                 # If auto-download is disabled, add to DB as pending if not exists

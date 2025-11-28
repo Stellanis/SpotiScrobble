@@ -76,6 +76,14 @@ def is_downloaded(query):
     conn.close()
     return result is not None
 
+def get_download_status(query):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT status FROM downloads WHERE query = ?', (query,))
+    result = c.fetchone()
+    conn.close()
+    return result[0] if result else None
+
 def get_downloads(page=1, limit=50, status=None):
     offset = (page - 1) * limit
     conn = sqlite3.connect(DB_NAME)
