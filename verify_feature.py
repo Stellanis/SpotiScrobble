@@ -3,8 +3,22 @@ import urllib.parse
 import json
 import time
 import uuid
+import sqlite3
+import os
 
 API_URL = "http://localhost:8000"
+DB_PATH = os.path.join("backend", "data", "downloads.db")
+
+def insert_pending_download(query, artist, title, album):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO downloads (query, artist, title, album, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (query, artist, title, album, 'pending', time.strftime('%Y-%m-%d %H:%M:%S')))
+    conn.commit()
+    conn.close()
+    print(f"Inserted pending item: {query}")
 
 def make_request(method, endpoint, data=None):
     url = f"{API_URL}{endpoint}"
@@ -85,23 +99,11 @@ def test_auto_download_setting():
 def test_undownloaded_filtering():
     print("\n--- Testing Undownloaded Filtering ---")
     
-    # 1. Create a pending download (simulate by ensuring auto-download is off first, or just inserting a record if we could, but we can't easily. 
-    # Instead, we'll disable auto-download, trigger a download, and check if it's pending)
-    
-    print("Disabling Auto Download to create a pending item...")
-    make_request("POST", "/settings", {"auto_download": False})
-    
     unique_id = str(uuid.uuid4())[:8]
     query = f"Pending Test - {unique_id}"
     
-    print(f"Triggering download for: {query}")
-    make_request("POST", "/download", {
-        "query": query,
-        "artist": "Pending Artist",
-        "title": f"Pending Title {unique_id}",
-        "album": "Pending Album",
-        "image": ""
-    })
+    print(f"Inserting pending item: {query}")
+    insert_pending_download(query, "Pending Artist", f"Pending Title {unique_id}", "Pending Album")
     
     # 2. Check 'undownloaded' (status=pending)
     print("Checking /downloads?status=pending...")
@@ -136,15 +138,58 @@ def test_undownloaded_filtering():
         raise Exception("Item should not be completed")
         
     print("Item correctly absent from completed list.")
-    
-    # Cleanup: Re-enable auto download
-    make_request("POST", "/settings", {"auto_download": True})
     print("Test Passed: Filtering works correctly.")
+
+def test_pending_to_completed_flow():
+    print("\n--- Testing Pending -> Completed Flow (Bug Fix) ---")
+    
+    # 1. Create a pending item
+    unique_id = str(uuid.uuid4())[:8]
+    # Use a real query that exists on YouTube to ensure download succeeds
+    query = f"1 second silence {unique_id}"
+    
+    print(f"Inserting pending item: {query}")
+    insert_pending_download(query, "Test Artist", "1 Second Silence", "Test Album")
+    
+    # Verify it is pending
+    response = make_request("GET", "/downloads?status=pending&limit=100")
+    pending_items = response["items"]
+    if not any(item["query"] == query for item in pending_items):
+        raise Exception("Failed to create pending item")
+    print("Pending item created.")
+    
+    # 2. Trigger download again (simulate manual download)
+    print("Triggering manual download for pending item...")
+    make_request("POST", "/download", {
+        "query": query,
+        "artist": "Bug Fix Artist",
+        "title": f"Bug Fix Title {unique_id}",
+        "album": "Bug Fix Album",
+        "image": ""
+    })
+    
+    # 3. Wait for completion
+    print("Waiting for completion...")
+    found_completed = False
+    for _ in range(30):
+        time.sleep(1)
+        response = make_request("GET", "/downloads?status=completed&limit=100")
+        completed_items = response["items"]
+        if any(item["query"] == query for item in completed_items):
+            found_completed = True
+            break
+            
+    if found_completed:
+        print("Test Passed: Pending item successfully updated to completed.")
+    else:
+        print("FAILED: Pending item did not update to completed.")
+        raise Exception("Bug fix failed")
 
 if __name__ == "__main__":
     try:
         test_auto_download_setting()
         test_undownloaded_filtering()
+        test_pending_to_completed_flow()
         print("\nALL TESTS PASSED")
     except Exception as e:
         print(f"\nTEST FAILED: {e}")

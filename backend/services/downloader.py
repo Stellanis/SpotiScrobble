@@ -147,4 +147,5 @@ class DownloaderService:
                      return {"status": "error", "message": "Downloaded file not found"}
 
             except Exception as e:
+                logger.error(f"Download failed for {query}: {e}")
                 return {"status": "error", "message": str(e)}

@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime
 import os
 
-DATA_DIR = "data"
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 DB_NAME = os.path.join(DATA_DIR, "downloads.db")
 print(f"Database path: {os.path.abspath(DB_NAME)}")
 
@@ -53,6 +53,13 @@ def add_download(query, artist, title, album, image_url=None, status="completed"
         c.execute('''
             INSERT INTO downloads (query, artist, title, album, image_url, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(query) DO UPDATE SET
+                artist=excluded.artist,
+                title=excluded.title,
+                album=excluded.album,
+                image_url=excluded.image_url,
+                status=excluded.status,
+                created_at=excluded.created_at
         ''', (query, artist, title, album, image_url, status, datetime.now()))
         conn.commit()
         return True
