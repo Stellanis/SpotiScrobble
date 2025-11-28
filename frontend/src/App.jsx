@@ -17,6 +17,7 @@ function App() {
   const [downloading, setDownloading] = useState({});
   const [downloadedTracks, setDownloadedTracks] = useState([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [autoDownload, setAutoDownload] = useState(true);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,6 +32,7 @@ function App() {
         if (response.data.LASTFM_USER) {
           setUsername(response.data.LASTFM_USER);
         }
+        setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false');
       } catch (error) {
         console.error("Error fetching settings:", error);
       }
@@ -141,14 +143,17 @@ function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={(newUsername) => setUsername(newUsername)}
+        onSave={(newUsername, newAutoDownload) => {
+          setUsername(newUsername);
+          setAutoDownload(newAutoDownload);
+        }}
       />
       <div className="w-[95%] mx-auto space-y-8">
 
         {/* Header */}
         <header className="flex flex-col md:flex-row items-center justify-between glass-panel p-6 gap-4">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-spotify-green rounded-full">
+            <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "bg-red-500")}>
               <Music className="w-8 h-8 text-white" />
             </div>
             <div>

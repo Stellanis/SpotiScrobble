@@ -50,7 +50,7 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
                 scrobble_limit_count: parseInt(limitCount),
                 auto_download: autoDownload
             });
-            onSave(username); // Pass back the new username to update App state
+            onSave(username, autoDownload); // Pass back the new username and autoDownload state
             onClose();
         } catch (error) {
             console.error("Error saving settings:", error);
