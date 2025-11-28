@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key } from 'lucide-react';
+import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key, Hourglass } from 'lucide-react';
 import { cn } from './utils';
 import axios from 'axios';
 
@@ -36,6 +36,12 @@ const steps = [
         description: "Enable 'Auto Download' in settings to automatically download new scrobbles as they come in.",
         icon: <RefreshCw className="w-16 h-16 text-pink-500" />,
         color: "bg-pink-500"
+    },
+    {
+        title: "Background Jobs",
+        description: "Monitor active downloads and check the status of your Last.fm sync in the Jobs tab.",
+        icon: <Hourglass className="w-16 h-16 text-cyan-500" />,
+        color: "bg-cyan-500"
     },
     {
         title: "Connect Last.fm",
