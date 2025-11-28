@@ -8,7 +8,7 @@ function Jobs() {
 
     const fetchJobs = async () => {
         try {
-            const response = await fetch('http://localhost:8000/jobs');
+            const response = await fetch('/api/jobs');
             if (response.ok) {
                 const data = await response.json();
                 setJobs(data);
@@ -29,7 +29,7 @@ function Jobs() {
     const triggerSync = async () => {
         setSyncing(true);
         try {
-            await fetch('http://localhost:8000/sync', { method: 'POST' });
+            await fetch('/api/sync', { method: 'POST' });
             // Ideally show a toast or notification
         } catch (error) {
             console.error('Error triggering sync:', error);
