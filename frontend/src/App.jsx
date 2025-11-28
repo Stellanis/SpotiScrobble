@@ -89,7 +89,16 @@ function App() {
         image: track.image
       });
       setDownloading(prev => ({ ...prev, [query]: 'success' }));
-      // If we are in library view, maybe refresh? But usually we download from scrobbles view.
+
+      // If we are in library view, update the track status locally to avoid full refresh
+      if (view === 'library') {
+        setDownloadedTracks(prev => prev.map(t => {
+          if (`${t.artist} - ${t.title}` === query) {
+            return { ...t, status: 'completed' };
+          }
+          return t;
+        }));
+      }
     } catch (error) {
       console.error("Error downloading:", error);
       setDownloading(prev => ({ ...prev, [query]: 'error' }));
@@ -209,7 +218,10 @@ function App() {
                 <AnimatePresence mode="wait">
                   {(view === 'scrobbles' ? tracks : currentTracks).map((track, index) => {
                     const query = `${track.artist} - ${track.title}`;
-                    const status = view === 'library' || track.downloaded ? 'success' : downloading[query];
+                    // In library view, check track.status. If 'completed', it's downloaded.
+                    // If 'pending', it's not.
+                    const isLibraryItemDownloaded = view === 'library' && track.status === 'completed';
+                    const status = isLibraryItemDownloaded || track.downloaded ? 'success' : downloading[query];
 
                     // Determine image source: track.image (scrobbles) or track.image_url (library)
                     const imageSrc = view === 'scrobbles' ? track.image : track.image_url;
@@ -249,7 +261,19 @@ function App() {
                             {/* Overlay Play/Check Icon for Library Grid */}
                             {view === 'library' && (
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <CheckCircle className="w-8 h-8 text-spotify-green" />
+                                {track.status === 'completed' ? (
+                                  <CheckCircle className="w-8 h-8 text-spotify-green" />
+                                ) : (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(track);
+                                    }}
+                                    className="p-2 bg-spotify-green rounded-full text-white hover:scale-110 transition-transform"
+                                  >
+                                    <Download className="w-6 h-6" />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -269,7 +293,7 @@ function App() {
 
                         {view !== 'library' && (
                           <button
-                            onClick={() => view === 'scrobbles' && handleDownload(track)}
+                            onClick={() => handleDownload(track)}
                             disabled={status === 'loading' || status === 'success'}
                             className={cn(
                               "p-3 rounded-full transition-all duration-300",

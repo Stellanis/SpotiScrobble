@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
-from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting, set_setting, get_all_settings
+from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting, set_setting, get_all_settings, add_download
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -40,10 +40,28 @@ def check_new_scrobbles():
     logger.info(f"Checking new scrobbles for {user} (limit: {limit})...")
     try:
         tracks = lastfm_service.get_recent_tracks(user, limit=limit)
+        
+        # Check auto-download setting
+        auto_download = get_setting("AUTO_DOWNLOAD", "true").lower() == "true"
+        
         for track in tracks:
             query = f"{track['artist']} - {track['title']}"
             logger.info(f"Processing: {query}")
-            downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
+            
+            if auto_download:
+                downloader_service.download_song(query, artist=track['artist'], title=track['title'], album=track['album'], image_url=track.get('image'))
+            else:
+                # If auto-download is disabled, add to DB as pending if not exists
+                if not is_downloaded(query):
+                    # Check if it exists at all (even pending) to avoid duplicates? 
+                    # is_downloaded only checks for 'completed'.
+                    # We should probably check if it exists in any status.
+                    # But add_download handles unique constraint on query.
+                    # So we can just try to add it.
+                    from database import add_download
+                    add_download(query, track['artist'], track['title'], track['album'], image_url=track.get('image'), status="pending")
+                    logger.info(f"Added to library (pending): {query}")
+
     except Exception as e:
         logger.error(f"Error in background job: {e}")
 
@@ -89,6 +107,7 @@ class SettingsRequest(BaseModel):
     lastfm_user: str = None
     scrobble_update_interval: int = None
     scrobble_limit_count: int = None
+    auto_download: bool = None
 
 @app.get("/settings")
 async def get_settings():
@@ -118,6 +137,9 @@ async def update_settings(settings: SettingsRequest):
     
     if settings.scrobble_limit_count is not None:
         set_setting("SCROBBLE_LIMIT_COUNT", str(settings.scrobble_limit_count))
+
+    if settings.auto_download is not None:
+        set_setting("AUTO_DOWNLOAD", str(settings.auto_download).lower())
 
     if settings.scrobble_update_interval is not None:
         old_interval = int(get_setting("SCROBBLE_UPDATE_INTERVAL") or 30)

@@ -12,6 +12,7 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
     const [username, setUsername] = useState('');
     const [updateInterval, setUpdateInterval] = useState(30);
     const [limitCount, setLimitCount] = useState(20);
+    const [autoDownload, setAutoDownload] = useState(true);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -30,6 +31,7 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
             setUsername(response.data.LASTFM_USER || '');
             setUpdateInterval(response.data.SCROBBLE_UPDATE_INTERVAL || 30);
             setLimitCount(response.data.SCROBBLE_LIMIT_COUNT || 20);
+            setAutoDownload(response.data.AUTO_DOWNLOAD !== 'false'); // Default to true
         } catch (error) {
             console.error("Error fetching settings:", error);
         } finally {
@@ -45,7 +47,8 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
                 lastfm_api_secret: apiSecret,
                 lastfm_user: username,
                 scrobble_update_interval: parseInt(updateInterval),
-                scrobble_limit_count: parseInt(limitCount)
+                scrobble_limit_count: parseInt(limitCount),
+                auto_download: autoDownload
             });
             onSave(username); // Pass back the new username to update App state
             onClose();
@@ -147,6 +150,25 @@ export function SettingsModal({ isOpen, onClose, onSave }) {
                                                 min="1"
                                             />
                                         </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg border border-white/10">
+                                        <div className="space-y-0.5">
+                                            <label className="text-sm font-medium text-white block">Auto Download</label>
+                                            <p className="text-xs text-spotify-grey">Automatically download new scrobbles</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setAutoDownload(!autoDownload)}
+                                            className={cn(
+                                                "w-12 h-6 rounded-full transition-colors relative",
+                                                autoDownload ? "bg-spotify-green" : "bg-white/10"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-4 h-4 rounded-full bg-white absolute top-1 transition-all",
+                                                autoDownload ? "left-7" : "left-1"
+                                            )} />
+                                        </button>
                                     </div>
 
                                     <div className="pt-4 flex justify-end gap-3">
