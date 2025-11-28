@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw } from 'lucide-react';
+import { X, ChevronRight, Check, Music, Disc, Download, CheckCircle, RefreshCw, Key } from 'lucide-react';
 import { cn } from './utils';
+import axios from 'axios';
+
+const API_URL = '/api';
 
 const steps = [
     {
@@ -33,16 +36,42 @@ const steps = [
         description: "Enable 'Auto Download' in settings to automatically download new scrobbles as they come in.",
         icon: <RefreshCw className="w-16 h-16 text-pink-500" />,
         color: "bg-pink-500"
+    },
+    {
+        title: "Connect Last.fm",
+        description: "Enter your Last.fm credentials to start fetching your scrobbles.",
+        icon: <Key className="w-16 h-16 text-yellow-500" />,
+        color: "bg-yellow-500",
+        isInputStep: true
     }
 ];
 
 export function TutorialModal({ isOpen, onClose }) {
     const [currentStep, setCurrentStep] = useState(0);
+    const [apiKey, setApiKey] = useState('');
+    const [apiSecret, setApiSecret] = useState('');
+    const [username, setUsername] = useState('');
+    const [saving, setSaving] = useState(false);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (currentStep < steps.length - 1) {
             setCurrentStep(currentStep + 1);
         } else {
+            // Save settings if on the last step
+            if (steps[currentStep].isInputStep) {
+                setSaving(true);
+                try {
+                    await axios.post(`${API_URL}/settings`, {
+                        lastfm_api_key: apiKey,
+                        lastfm_api_secret: apiSecret,
+                        lastfm_user: username
+                    });
+                } catch (error) {
+                    console.error("Failed to save settings:", error);
+                } finally {
+                    setSaving(false);
+                }
+            }
             onClose();
         }
     };
@@ -101,6 +130,51 @@ export function TutorialModal({ isOpen, onClose }) {
                                                 {steps[currentStep].description}
                                             </p>
                                         </div>
+
+                                        {steps[currentStep].isInputStep && (
+                                            <div className="w-full space-y-4 mt-4 text-left">
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium text-spotify-grey">Last.fm Username</label>
+                                                    <input
+                                                        type="text"
+                                                        value={username}
+                                                        onChange={(e) => setUsername(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                        placeholder="Enter Username"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium text-spotify-grey">API Key</label>
+                                                    <input
+                                                        type="text"
+                                                        value={apiKey}
+                                                        onChange={(e) => setApiKey(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                        placeholder="Enter API Key"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium text-spotify-grey">Shared Secret</label>
+                                                    <input
+                                                        type="password"
+                                                        value={apiSecret}
+                                                        onChange={(e) => setApiSecret(e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-spotify-green transition-colors"
+                                                        placeholder="Enter Shared Secret"
+                                                    />
+                                                </div>
+                                                <div className="text-center pt-2">
+                                                    <a
+                                                        href="https://www.last.fm/api/account/create"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm text-spotify-green hover:underline"
+                                                    >
+                                                        Get an API account here
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        )}
                                     </motion.div>
                                 </AnimatePresence>
                             </div>
@@ -121,7 +195,8 @@ export function TutorialModal({ isOpen, onClose }) {
 
                                 <button
                                     onClick={handleNext}
-                                    className="px-6 py-2.5 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2"
+                                    disabled={saving}
+                                    className="px-6 py-2.5 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {currentStep === steps.length - 1 ? (
                                         <>Get Started <Check className="w-4 h-4" /></>
