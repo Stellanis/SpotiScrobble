@@ -119,6 +119,22 @@ function App() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    if (!confirm("Are you sure you want to download all pending tracks?")) return;
+
+    try {
+      const response = await axios.post(`${API_URL}/download/all`);
+      toast.success(`Started downloading ${response.data.count} tracks`);
+      // Refresh list after a short delay
+      setTimeout(() => {
+        fetchDownloads();
+      }, 1000);
+    } catch (error) {
+      console.error("Error downloading all:", error);
+      toast.error("Failed to start bulk download");
+    }
+  };
+
   const handleSync = async () => {
     setIsSyncing(true);
     try {
@@ -261,13 +277,25 @@ function App() {
 
         {/* Content */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            {view === 'scrobbles' ? <Disc className="w-5 h-5 text-spotify-green" /> :
-              view === 'library' ? <CheckCircle className="w-5 h-5 text-spotify-green" /> :
-                <Download className="w-5 h-5 text-spotify-green" />}
-            {view === 'scrobbles' ? 'Recent Scrobbles' :
-              view === 'library' ? 'Downloaded Library' : 'Pending Downloads'}
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              {view === 'scrobbles' ? <Disc className="w-5 h-5 text-spotify-green" /> :
+                view === 'library' ? <CheckCircle className="w-5 h-5 text-spotify-green" /> :
+                  <Download className="w-5 h-5 text-spotify-green" />}
+              {view === 'scrobbles' ? 'Recent Scrobbles' :
+                view === 'library' ? 'Downloaded Library' : 'Pending Downloads'}
+            </h2>
+
+            {view === 'undownloaded' && downloadedTracks.length > 0 && (
+              <button
+                onClick={handleDownloadAll}
+                className="flex items-center gap-2 px-4 py-2 bg-spotify-green text-white rounded-full text-sm font-medium hover:scale-105 transition-transform"
+              >
+                <Download className="w-4 h-4" />
+                Download All
+              </button>
+            )}
+          </div>
 
           {loading ? (
             <div className="flex justify-center py-20">

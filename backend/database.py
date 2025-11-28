@@ -99,6 +99,15 @@ def get_downloads(page=1, limit=50, status=None):
     conn.close()
     return [dict(row) for row in rows]
 
+def get_all_pending_downloads():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT * FROM downloads WHERE status = "pending"')
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
 def get_total_downloads_count(status=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()

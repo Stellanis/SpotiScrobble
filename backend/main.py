@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from services.lastfm import LastFMService
 from services.downloader import DownloaderService
-from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting, set_setting, get_all_settings, add_download
+from database import init_db, get_downloads, is_downloaded, DB_NAME, get_setting, set_setting, get_all_settings, add_download, get_all_pending_downloads
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -217,3 +217,19 @@ async def download_song(request: DownloadRequest, background_tasks: BackgroundTa
     # Run download in background to not block the API
     background_tasks.add_task(downloader_service.download_song, request.query, request.artist, request.title, request.album, request.image)
     return {"status": "queued", "query": request.query}
+
+@app.post("/download/all")
+async def download_all_pending(background_tasks: BackgroundTasks):
+    pending_tracks = get_all_pending_downloads()
+    count = 0
+    for track in pending_tracks:
+        background_tasks.add_task(
+            downloader_service.download_song, 
+            track['query'], 
+            track['artist'], 
+            track['title'], 
+            track['album'], 
+            track['image_url']
+        )
+        count += 1
+    return {"status": "queued", "count": count}
