@@ -28,6 +28,10 @@ function App() {
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
   useEffect(() => {
     // Fetch settings on mount to get the username
     const fetchSettings = async () => {
@@ -48,6 +52,22 @@ function App() {
     };
     fetchSettings();
   }, []);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset search when view changes
+  useEffect(() => {
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+  }, [view]);
 
   // Fetch scrobbles whenever username changes (if not empty)
   useEffect(() => {
@@ -81,6 +101,10 @@ function App() {
         params.status = 'completed';
       } else if (view === 'undownloaded') {
         params.status = 'pending';
+      }
+
+      if (debouncedSearchQuery) {
+        params.search = debouncedSearchQuery;
       }
 
       const response = await axios.get(`${API_URL}/downloads`, { params });
@@ -177,7 +201,7 @@ function App() {
     } else if (view === 'library' || view === 'undownloaded') {
       fetchDownloads();
     }
-  }, [view, currentPage, itemsPerPage]);
+  }, [view, currentPage, itemsPerPage, debouncedSearchQuery]);
 
   const currentTracks = view === 'library' || view === 'undownloaded'
     ? downloadedTracks
@@ -327,6 +351,20 @@ function App() {
                 </button>
               )}
             </div>
+
+            {/* Search Bar */}
+            {(view === 'library' || view === 'undownloaded') && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-spotify-grey" />
+                <input
+                  type="text"
+                  placeholder={`Search ${view === 'library' ? 'library' : 'pending downloads'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-white placeholder:text-spotify-grey focus:outline-none focus:border-spotify-green focus:bg-white/10 transition-colors"
+                />
+              </div>
+            )}
 
             {loading ? (
               <div className="flex justify-center py-20">

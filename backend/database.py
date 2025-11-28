@@ -84,16 +84,33 @@ def get_download_status(query):
     conn.close()
     return result[0] if result else None
 
-def get_downloads(page=1, limit=50, status=None):
+def get_downloads(page=1, limit=50, status=None, search_query=None):
     offset = (page - 1) * limit
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
+    query_parts = ["SELECT * FROM downloads"]
+    params = []
+    conditions = []
+    
     if status:
-        c.execute('SELECT * FROM downloads WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?', (status, limit, offset))
-    else:
-        c.execute('SELECT * FROM downloads ORDER BY created_at DESC LIMIT ? OFFSET ?', (limit, offset))
+        conditions.append("status = ?")
+        params.append(status)
+        
+    if search_query:
+        search_term = f"%{search_query}%"
+        conditions.append("(title LIKE ? OR artist LIKE ? OR album LIKE ?)")
+        params.extend([search_term, search_term, search_term])
+        
+    if conditions:
+        query_parts.append("WHERE " + " AND ".join(conditions))
+        
+    query_parts.append("ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    params.extend([limit, offset])
+    
+    sql = " ".join(query_parts)
+    c.execute(sql, params)
         
     rows = c.fetchall()
     conn.close()
@@ -108,14 +125,28 @@ def get_all_pending_downloads():
     conn.close()
     return [dict(row) for row in rows]
 
-def get_total_downloads_count(status=None):
+def get_total_downloads_count(status=None, search_query=None):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
+    query_parts = ["SELECT COUNT(*) FROM downloads"]
+    params = []
+    conditions = []
+    
     if status:
-        c.execute('SELECT COUNT(*) FROM downloads WHERE status = ?', (status,))
-    else:
-        c.execute('SELECT COUNT(*) FROM downloads')
+        conditions.append("status = ?")
+        params.append(status)
+        
+    if search_query:
+        search_term = f"%{search_query}%"
+        conditions.append("(title LIKE ? OR artist LIKE ? OR album LIKE ?)")
+        params.extend([search_term, search_term, search_term])
+        
+    if conditions:
+        query_parts.append("WHERE " + " AND ".join(conditions))
+        
+    sql = " ".join(query_parts)
+    c.execute(sql, params)
         
     count = c.fetchone()[0]
     conn.close()
