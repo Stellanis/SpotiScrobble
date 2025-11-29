@@ -5,6 +5,7 @@ import { Download, Music, Disc, Search, CheckCircle, Loader2, Settings, ChevronL
 import { cn } from './utils';
 import { SettingsModal } from './SettingsModal';
 import { TutorialModal } from './TutorialModal';
+import { GlassCard } from './components/GlassCard';
 import Jobs from './Jobs';
 
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -252,25 +253,24 @@ function App() {
         <div className="w-[95%] mx-auto space-y-8">
 
           {/* Header */}
-          <header className="flex flex-col md:flex-row items-center justify-between glass-panel p-6 gap-4">
+          <GlassCard className="flex flex-col md:flex-row items-center justify-between p-6 gap-4">
             <div className="flex items-center gap-4">
               <div className={cn("p-3 rounded-full transition-colors duration-300", autoDownload ? "bg-spotify-green" : "!bg-red-500")}>
                 <Music className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Spotiflow</h1>
-                <p className="text-spotify-grey text-sm">Powered by Last.fm & yt-dlp</p>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               {/* Navigation Tabs */}
-              <div className="flex bg-spotify-dark/50 p-1 rounded-lg border border-white/5">
+              <div className="flex bg-secondary/50 p-1 rounded-full border border-border">
                 <button
                   onClick={() => setView('scrobbles')}
                   className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'scrobbles' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-white"
+                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                    view === 'scrobbles' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
                   )}
                 >
                   <Disc className="w-4 h-4" />
@@ -279,8 +279,8 @@ function App() {
                 <button
                   onClick={() => setView('library')}
                   className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'library' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-white"
+                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                    view === 'library' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
                   )}
                 >
                   <CheckCircle className="w-4 h-4" />
@@ -289,8 +289,8 @@ function App() {
                 <button
                   onClick={() => setView('undownloaded')}
                   className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'undownloaded' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-white"
+                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                    view === 'undownloaded' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
                   )}
                 >
                   <Download className="w-4 h-4" />
@@ -299,8 +299,8 @@ function App() {
                 <button
                   onClick={() => setView('jobs')}
                   className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
-                    view === 'jobs' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-white"
+                    "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                    view === 'jobs' ? "bg-spotify-green text-white" : "text-spotify-grey hover:text-black dark:text-white/70 dark:hover:text-white"
                   )}
                 >
                   <Hourglass className="w-4 h-4" />
@@ -331,7 +331,7 @@ function App() {
               <div className="h-6 w-px bg-white/10 mx-2" />
               <ThemeToggle />
             </div>
-          </header>
+          </GlassCard>
 
           {/* Content */}
           {view === 'jobs' ? (
@@ -407,34 +407,35 @@ function App() {
                           const isQueued = downloading[query] === 'loading' || downloading[query] === 'success';
 
                           return (
-                            <motion.div
+                            <GlassCard
                               key={`${track.timestamp || track.id}-${index}`}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -20 }}
                               transition={{ delay: index * 0.05 }}
+                              image={imageSrc}
                               className={cn(
-                                "glass-panel group hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000",
+                                "hover:bg-white/10 transition-colors relative overflow-hidden perspective-1000",
                                 view === 'library' || view === 'undownloaded' ? "p-4 flex flex-col gap-3 aspect-square justify-between" : "p-4 flex items-center justify-between"
                               )}
                             >
                               <div className={cn("flex gap-4", view === 'library' || view === 'undownloaded' ? "flex-col items-start w-full h-full" : "items-center")}>
                                 <div className={cn(
-                                  "rounded-md overflow-hidden bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
+                                  "rounded-md overflow-hidden bg-black/5 dark:bg-spotify-dark relative flex items-center justify-center text-spotify-grey shadow-lg transition-transform duration-500 ease-out group-hover:rotate-x-6 group-hover:rotate-y-6 group-hover:scale-105",
                                   view === 'library' || view === 'undownloaded' ? "w-full aspect-square mb-2" : "w-16 h-16",
                                   isQueued && track.status !== 'completed' && "opacity-50 pointer-events-none"
                                 )}>
                                   {imageSrc ? (
                                     <img src={imageSrc} alt={track.title} className="w-full h-full object-cover" />
                                   ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-spotify-dark to-spotify-grey/20 p-2 text-center">
+                                    <div className="w-full h-full flex flex-col items-center justify-center bg-transparent dark:bg-linear-to-br dark:from-spotify-dark dark:to-spotify-grey/20 p-2 text-center">
                                       {view === 'library' || view === 'undownloaded' ? (
                                         <>
-                                          <span className="font-bold text-white text-sm line-clamp-2">{track.title}</span>
-                                          <span className="text-xs text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
+                                          <span className="font-bold text-black dark:text-white text-sm line-clamp-2">{track.title}</span>
+                                          <span className="text-xs text-black/70 dark:text-spotify-grey line-clamp-1 mt-1">{track.artist}</span>
                                         </>
                                       ) : (
-                                        <Music className="w-8 h-8 text-spotify-grey/50" />
+                                        <Music className="w-8 h-8 text-black/50 dark:text-spotify-grey/50" />
                                       )}
                                     </div>
                                   )}
@@ -497,7 +498,7 @@ function App() {
                                   )}
                                 </button>
                               )}
-                            </motion.div>
+                            </GlassCard>
                           );
                         })}
                       </AnimatePresence>

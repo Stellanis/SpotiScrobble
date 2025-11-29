@@ -124,6 +124,17 @@ class SettingsRequest(BaseModel):
 async def get_settings():
     settings = get_all_settings()
     
+    env_user = os.getenv("LASTFM_USER")
+
+    # Merge with env vars if not in DB or empty
+    if (not settings.get("LASTFM_USER")) and env_user:
+        settings["LASTFM_USER"] = env_user
+        
+    if (not settings.get("LASTFM_API_KEY")) and os.getenv("LASTFM_API_KEY"):
+        settings["LASTFM_API_KEY"] = os.getenv("LASTFM_API_KEY")
+    if (not settings.get("LASTFM_API_SECRET")) and os.getenv("LASTFM_API_SECRET"):
+        settings["LASTFM_API_SECRET"] = os.getenv("LASTFM_API_SECRET")
+    
     # Mask secrets
     if "LASTFM_API_KEY" in settings and settings["LASTFM_API_KEY"]:
         key = settings["LASTFM_API_KEY"]
