@@ -24,34 +24,67 @@ class LastFMService:
 
         # Refresh credentials from DB in case they changed
         self.api_key = get_setting("LASTFM_API_KEY") or os.getenv("LASTFM_API_KEY")
-        self.api_secret = get_setting("LASTFM_API_SECRET") or os.getenv("LASTFM_API_SECRET")
         
-        if self.api_key:
-            self.network = pylast.LastFMNetwork(api_key=self.api_key, api_secret=self.api_secret)
-            
-        if not self.network:
-            print("Last.fm credentials not configured")
+        if not self.api_key:
+            print("Last.fm API key not configured")
             return []
         
         try:
-            user_obj = self.network.get_user(user)
-            recent_tracks = user_obj.get_recent_tracks(limit=limit)
+            import requests
+            url = "http://ws.audioscrobbler.com/2.0/"
+            params = {
+                "method": "user.getrecenttracks",
+                "user": user,
+                "api_key": self.api_key,
+                "format": "json",
+                "limit": limit
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
             
             tracks = []
-            for track in recent_tracks:
-                image_url = None
-                try:
-                    image_url = track.track.get_cover_image()
-                except Exception:
-                    pass
-
-                tracks.append({
-                    "artist": track.track.artist.name,
-                    "title": track.track.title,
-                    "album": track.album,
-                    "image": image_url,
-                    "timestamp": track.timestamp
-                })
+            if "recenttracks" in data and "track" in data["recenttracks"]:
+                raw_tracks = data["recenttracks"]["track"]
+                if isinstance(raw_tracks, dict):
+                    raw_tracks = [raw_tracks]
+                    
+                for track in raw_tracks:
+                    # Extract image
+                    image_url = None
+                    images = track.get("image", [])
+                    if isinstance(images, list):
+                        # Try to find extralarge, then large, then whatever is last
+                        for img in images:
+                            if img.get("size") == "extralarge":
+                                image_url = img.get("#text")
+                                break
+                        if not image_url and images:
+                             image_url = images[-1].get("#text")
+                    
+                    # Extract artist name
+                    artist_obj = track.get("artist")
+                    artist = artist_obj.get("#text") if isinstance(artist_obj, dict) else artist_obj
+                    
+                    # Extract album name
+                    album_obj = track.get("album")
+                    album = album_obj.get("#text") if isinstance(album_obj, dict) else album_obj
+                    
+                    # Timestamp
+                    timestamp = None
+                    if "date" in track:
+                        timestamp = track["date"].get("uts")
+                    
+                    # Filter out empty artist/title if any
+                    if artist and track.get("name"):
+                        tracks.append({
+                            "artist": artist,
+                            "title": track.get("name"),
+                            "album": album,
+                            "image": image_url,
+                            "timestamp": timestamp
+                        })
             
             # Update cache
             self._cache[cache_key] = (now, tracks)
@@ -62,4 +95,4 @@ class LastFMService:
             # If we have stale data, return it instead of crashing
             if cache_key in self._cache:
                 return self._cache[cache_key][1]
-            raise e
+            return []
