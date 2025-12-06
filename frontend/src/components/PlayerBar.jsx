@@ -1,0 +1,106 @@
+import { Play, Pause, SkipBack, SkipForward, Volume2, Loader2, Maximize2, Download } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { usePlayer } from '../contexts/PlayerContext';
+import { cn } from '../utils';
+
+function formatDuration(seconds) {
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function PlayerBar() {
+    const { currentTrack, isPlaying, togglePlay, progress, duration, seek, volume, updateVolume, isReady, activeDownloads } = usePlayer();
+
+    if (!currentTrack) return null;
+
+    return (
+        <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            className="fixed bottom-0 left-0 right-0 h-24 bg-black/40 backdrop-blur-xl border-t border-white/10 px-4 md:px-8 flex items-center justify-between z-50 text-white"
+        >
+            {/* Track Info */}
+            <div className="flex items-center gap-4 w-[30%]">
+                <div className="w-14 h-14 rounded-md overflow-hidden bg-white/10 relative group">
+                    {currentTrack.image || currentTrack.image_url ? (
+                        <img src={currentTrack.image || currentTrack.image_url} alt={currentTrack.title} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-spotify-grey/20">
+                            <Maximize2 className="w-6 h-6 text-white/50" />
+                        </div>
+                    )}
+                </div>
+                <div className="min-w-0">
+                    <h4 className="font-semibold text-sm truncate hover:underline cursor-pointer">{currentTrack.title}</h4>
+                    <p className="text-xs text-spotify-grey truncate hover:underline cursor-pointer">{currentTrack.artist}</p>
+                </div>
+            </div>
+
+            {/* Controls & Scrubber */}
+            <div className="flex flex-col items-center gap-2 w-[40%] max-w-xl">
+                <div className="flex items-center gap-6">
+                    <button className="text-spotify-grey hover:text-white transition-colors">
+                        <SkipBack className="w-5 h-5" />
+                    </button>
+
+                    <button
+                        onClick={togglePlay}
+                        className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform"
+                        disabled={!isReady}
+                    >
+                        {!isReady ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : isPlaying ? (
+                            <Pause className="w-5 h-5 fill-current" />
+                        ) : (
+                            <Play className="w-5 h-5 fill-current ml-0.5" />
+                        )}
+                    </button>
+
+                    <button className="text-spotify-grey hover:text-white transition-colors">
+                        <SkipForward className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="w-full flex items-center gap-2 text-xs font-mono text-spotify-grey">
+                    <span>{formatDuration(progress)}</span>
+                    <input
+                        type="range"
+                        min={0}
+                        max={duration || 100}
+                        value={progress}
+                        onChange={(e) => seek(Number(e.target.value))}
+                        className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white hover:[&::-webkit-slider-thumb]:scale-125 transition-all"
+                    />
+                    <span>{formatDuration(duration)}</span>
+                </div>
+            </div>
+
+            {/* Volume & Extra */}
+            <div className="flex items-center justify-end gap-3 w-[30%]">
+                {/* Global Download Status */}
+                {activeDownloads.length > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium animate-pulse">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>{activeDownloads.length} Downloading</span>
+                    </div>
+                )}
+
+                <div className="h-8 w-px bg-white/10 mx-2" />
+
+                <Volume2 className="w-5 h-5 text-spotify-grey" />
+                <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(e) => updateVolume(Number(e.target.value))}
+                    className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                />
+            </div>
+        </motion.div>
+    );
+}

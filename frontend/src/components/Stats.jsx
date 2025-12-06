@@ -3,6 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Music, Trophy, Calendar } from 'lucide-react';
 import { GlassCard } from './GlassCard';
+import { SkeletonCard } from './SkeletonCard';
 import { cn } from '../utils';
 import { ActivityChart } from './ActivityChart';
 import { ListeningClock } from './ListeningClock';
@@ -106,7 +107,7 @@ export default function Stats({ username, onTrackClick }) {
     };
 
     return (
-        <div ref={statsRef} className="space-y-6 pb-20 group/stats group-[.capturing]/stats:pb-6 group-[.capturing]/stats:w-[800px] group-[.capturing]/stats:mx-auto">
+        <div ref={statsRef} className="space-y-6 group/stats group-[.capturing]/stats:pb-6 group-[.capturing]/stats:w-[800px] group-[.capturing]/stats:mx-auto">
             {/* Capture Header */}
             <div className="hidden group-[.capturing]/stats:block text-center mb-6">
                 <h1 className="text-4xl font-bold text-white mb-2 tracking-tighter">My Spotify Stats</h1>
@@ -196,56 +197,70 @@ export default function Stats({ username, onTrackClick }) {
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-20 no-capture group-[.capturing]/stats:hidden">
-                    <Loader2 className="w-10 h-10 animate-spin text-spotify-green" />
+                <div className="grid gap-3 no-capture group-[.capturing]/stats:hidden">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                        <SkeletonCard key={i} type="horizontal" />
+                    ))}
                 </div>
             ) : (
                 <div className="grid gap-3 no-capture group-[.capturing]/stats:hidden">
                     <AnimatePresence mode="popLayout">
-                        {tracks.map((track, index) => (
-                            <motion.div
-                                key={`${track.title}-${track.artist}-${period}`}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <GlassCard
-                                    image={track.image}
-                                    onClick={() => onTrackClick(track)}
-                                    className="p-3 flex items-center gap-4 group hover:bg-white/5 cursor-pointer"
+                        <motion.div
+                            className="grid gap-3"
+                            variants={{
+                                hidden: { opacity: 0 },
+                                show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+                            }}
+                            initial="hidden"
+                            animate="show"
+                        >
+                            {tracks.map((track, index) => (
+                                <motion.div
+                                    key={`${track.title}-${track.artist}-${period}`}
+                                    variants={{
+                                        hidden: { opacity: 0, x: -10 },
+                                        show: { opacity: 1, x: 0 }
+                                    }}
+                                    whileHover={{ x: 4 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                 >
+                                    <GlassCard
+                                        image={track.image}
+                                        onClick={() => onTrackClick(track)}
+                                        className="p-3 flex items-center gap-4 group hover:bg-white/5 cursor-pointer"
+                                    >
 
-                                    <div className="flex-shrink-0 w-8 text-center font-bold text-spotify-grey group-hover:text-spotify-green transition-colors">
-                                        #{track.rank}
-                                    </div>
+                                        <div className="flex-shrink-0 w-8 text-center font-bold text-spotify-grey group-hover:text-spotify-green transition-colors">
+                                            #{track.rank}
+                                        </div>
 
-                                    <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-md overflow-hidden bg-black/20 relative">
-                                        {track.image ? (
-                                            <img src={track.image} alt={track.title} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Music className="w-6 h-6 text-spotify-grey" />
+                                        <div className="flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-md overflow-hidden bg-black/20 relative">
+                                            {track.image ? (
+                                                <img src={track.image} alt={track.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <Music className="w-6 h-6 text-spotify-grey" />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex-grow min-w-0">
+                                            <h3 className="font-semibold text-base sm:text-lg truncate">{track.title}</h3>
+                                            <p className="text-spotify-grey text-sm truncate">{track.artist}</p>
+                                        </div>
+
+                                        <div className="flex-shrink-0 text-right">
+                                            <div className="font-bold text-spotify-green text-lg sm:text-xl">
+                                                {track.playcount}
                                             </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex-grow min-w-0">
-                                        <h3 className="font-semibold text-base sm:text-lg truncate">{track.title}</h3>
-                                        <p className="text-spotify-grey text-sm truncate">{track.artist}</p>
-                                    </div>
-
-                                    <div className="flex-shrink-0 text-right">
-                                        <div className="font-bold text-spotify-green text-lg sm:text-xl">
-                                            {track.playcount}
+                                            <div className="text-xs text-spotify-grey uppercase tracking-wide">
+                                                Plays
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-spotify-grey uppercase tracking-wide">
-                                            Plays
-                                        </div>
-                                    </div>
-                                </GlassCard>
-                            </motion.div>
-                        ))}
+                                    </GlassCard>
+                                </motion.div>
+                            ))}
+                        </motion.div>
                     </AnimatePresence>
 
                     {tracks.length === 0 && !loading && (
@@ -260,6 +275,6 @@ export default function Stats({ username, onTrackClick }) {
             <div className="no-capture group-[.capturing]/stats:hidden">
                 <ShareButton targetRef={statsRef} />
             </div>
-        </div>
+        </div >
     );
 }
